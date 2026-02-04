@@ -11,25 +11,13 @@ from datetime import datetime
 from pathlib import Path
 
 class WorkoutLogger:
-    def __init__(self, repo_name="workout-log"):
-        self.repo_name = repo_name
-        self.repo_path = Path(repo_name)
-        self.log_file = self.repo_path / "workouts.json"
+    def __init__(self):
+        self.log_file = Path("workouts.json")
 
     def init_repo(self):
-        """Initialize GitHub repo if it doesn't exist"""
-        if not self.repo_path.exists():
-            print(f"Creating repo directory: {self.repo_name}")
-            self.repo_path.mkdir()
-            os.chdir(self.repo_name)
-            subprocess.run(["git", "init"], check=True)
-            subprocess.run(["git", "config", "user.email", "workout@log.local"], check=True)
-            subprocess.run(["git", "config", "user.name", "Workout Logger"], check=True)
-            os.chdir("..")
-        else:
-            os.chdir(self.repo_name)
-            subprocess.run(["git", "pull"], check=True)
-            os.chdir("..")
+        """Initialize git repo if needed"""
+        # Repo is already initialized in main directory
+        pass
 
     def load_workouts(self):
         """Load existing workouts from file"""
@@ -60,10 +48,8 @@ class WorkoutLogger:
         self.save_workouts(data)
 
         # Commit to git
-        os.chdir(self.repo_name)
         subprocess.run(["git", "add", "workouts.json"], check=True)
         subprocess.run(["git", "commit", "-m", f"Add workout: {exercise} on {date}"], check=True)
-        os.chdir("..")
 
         print(f"✓ Added: {exercise} ({sets_reps}) on {date}")
 
@@ -116,24 +102,8 @@ HISTORICAL_WORKOUTS = [
 if __name__ == "__main__":
     logger = WorkoutLogger()
 
-    # Initialize repo
-    print("Initializing workout logger...")
-    logger.init_repo()
-
-    # Load existing or create new
+    # Load existing workouts
     data = logger.load_workouts()
-
-    # If empty, populate with historical data
-    if not data["workouts"]:
-        print(f"Populating with {len(HISTORICAL_WORKOUTS)} historical workouts...")
-        data["workouts"] = HISTORICAL_WORKOUTS
-        logger.save_workouts(data)
-
-        # Commit initial data
-        os.chdir("workout-log")
-        subprocess.run(["git", "add", "workouts.json"], check=True)
-        subprocess.run(["git", "commit", "-m", "Initial workout history"], check=True)
-        os.chdir("..")
 
     # Display current state
     logger.view_workouts(15)
