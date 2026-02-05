@@ -10,6 +10,16 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+WORKOUT_ROTATION = ["Upper A", "Lower A", "Upper B", "Lower B"]
+
+WORKOUT_EXERCISES = {
+    "Upper A": ["Bench Press", "Barbell Rows", "Overhead Press", "Chin-ups", "Dumbbell Curls"],
+    "Upper B": ["Bench Press", "Overhead Press", "Underhand Barbell Rows", "Overhead Tricep Ext", "Hammer Curls"],
+    "Lower A": ["Back Squats", "Conventional Deadlifts", "Leg Extensions", "Leg Curls", "Calf Raises"],
+    "Lower B": ["Romanian Deadlifts", "Goblet Squats", "Leg Curls", "Leg Extensions", "Standing Calf Raises"],
+}
+
+
 class WorkoutLogger:
     def __init__(self):
         self.log_file = Path("workouts.json")
@@ -73,6 +83,60 @@ class WorkoutLogger:
 
         return weights
 
+    def get_todays_workout(self):
+        """Determine today's workout based on rotation from last logged workout"""
+        data = self.load_workouts()
+        workouts = data["workouts"]
+
+        if not workouts:
+            return WORKOUT_ROTATION[0], {}
+
+        # Find the last workout day
+        last_day = workouts[-1]["day"]
+
+        # Advance to next in rotation
+        try:
+            idx = WORKOUT_ROTATION.index(last_day)
+            next_day = WORKOUT_ROTATION[(idx + 1) % len(WORKOUT_ROTATION)]
+        except ValueError:
+            next_day = WORKOUT_ROTATION[0]
+
+        # Gather last-used weights and sets/reps for each exercise in the upcoming workout
+        last_stats = {}
+        for w in workouts:
+            if w["exercise"] in WORKOUT_EXERCISES.get(next_day, []):
+                last_stats[w["exercise"]] = {
+                    "weight": w["weight"],
+                    "sets_reps": w["sets_reps"],
+                    "notes": w.get("notes", ""),
+                }
+
+        return next_day, last_stats
+
+    def show_todays_workout(self):
+        """Display today's workout with last-used weights"""
+        day, last_stats = self.get_todays_workout()
+        today = datetime.now().strftime("%-m/%-d/%y")
+
+        print(f"\n{'='*50}")
+        print(f"  Today's Workout: {day}  ({today})")
+        print(f"{'='*50}\n")
+
+        exercises = WORKOUT_EXERCISES[day]
+        print(f"  {'Exercise':<28} {'Weight':<10} {'Last Sets/Reps'}")
+        print(f"  {'-'*58}")
+        for ex in exercises:
+            stats = last_stats.get(ex, {})
+            weight = stats.get("weight", "—")
+            sets_reps = stats.get("sets_reps", "—")
+            notes = stats.get("notes", "")
+            line = f"  {ex:<28} {weight:<10} {sets_reps}"
+            if notes:
+                line += f"  ({notes})"
+            print(line)
+
+        print()
+
 
 # Historical workout data
 HISTORICAL_WORKOUTS = [
@@ -100,16 +164,11 @@ HISTORICAL_WORKOUTS = [
 ]
 
 if __name__ == "__main__":
+    import sys
+
     logger = WorkoutLogger()
 
-    # Load existing workouts
-    data = logger.load_workouts()
-
-    # Display current state
-    logger.view_workouts(15)
-
-    print("\n✓ Workout logger ready!")
-    print("\nUsage:")
-    print("  logger.add_workout('2/1/26', 'Lower A', 'Back Squats', '115', '8,8,8,8')")
-    print("  logger.view_workouts()")
-    print("  logger.get_current_weights()")
+    if len(sys.argv) > 1 and sys.argv[1] == "history":
+        logger.view_workouts(15)
+    else:
+        logger.show_todays_workout()
